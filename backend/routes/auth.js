@@ -5,6 +5,24 @@ const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
 
+const GEOAPIFY_KEY = process.env.GEOAPIFY_KEY;
+
+async function extractCity(lat, lng) {
+  try {
+    const url = `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&apiKey=${GEOAPIFY_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.features && data.features.length > 0) {
+      const p = data.features[0].properties;
+      return p.city || p.county || p.state || null;
+    }
+    return null;
+  } catch (err) {
+    console.error('City extraction error:', err.message);
+    return null;
+  }
+}
+
 // Register
 router.post('/register', async (req, res) => {
   try {
@@ -26,9 +44,12 @@ router.post('/register', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const password_hash = await bcrypt.hash(password, salt);
 
+    // Extract city from coordinates
+    const city = (lat && lng) ? await extractCity(lat, lng) : null;
+
     const newUser = await pool.query(
-      'INSERT INTO users (name, email, password_hash, phone, address, role, lat, lng) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, name, email, role',
-      [name, email, password_hash, phone, address, role, lat || null, lng || null]
+      'INSERT INTO users (name, email, password_hash, phone, address, role, lat, lng, city) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id, name, email, role, city',
+      [name, email, password_hash, phone, address, role, lat || null, lng || null, city]
     );
 
     const payload = {
@@ -82,7 +103,7 @@ router.post('/login', async (req, res) => {
       { expiresIn: '1h' },
       (err, token) => {
         if (err) throw err;
-        res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+        res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role, city: user.city } });
       }
     );
   } catch (err) {
@@ -94,7 +115,7 @@ router.post('/login', async (req, res) => {
 // Get User (optional useful route)
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const userQuery = await pool.query('SELECT id, name, email, role, phone, address, lat, lng FROM users WHERE id = $1', [req.user.id]);
+    const userQuery = await pool.query('SELECT id, name, email, role, phone, address, lat, lng, city FROM users WHERE id = $1', [req.user.id]);
     res.json(userQuery.rows[0]);
   } catch (err) {
     console.error(err.message);

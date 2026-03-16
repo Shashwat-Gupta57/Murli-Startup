@@ -46,6 +46,10 @@ const Dashboard = () => {
     if (!token) { navigate('/login'); return; }
     if (role !== 'retailer') { navigate('/market'); return; }
     Promise.all([fetchBusinesses(), fetchProducts()]).then(() => setLoading(false));
+    // Auto-backfill city for businesses missing it
+    axios.post(`${API}/api/businesses/backfill-cities`, {}, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => { if (res.data.updated > 0) fetchBusinesses(); })
+      .catch(() => {});
   }, [navigate]);
 
   const handleLogout = () => { localStorage.removeItem('token'); localStorage.removeItem('role'); navigate('/login'); };

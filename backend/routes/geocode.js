@@ -14,7 +14,8 @@ router.get('/autocomplete', async (req, res) => {
     const results = (data.features || []).map(f => ({
       label: f.properties.formatted,
       lat: f.properties.lat,
-      lng: f.properties.lon
+      lng: f.properties.lon,
+      city: f.properties.city || f.properties.county || f.properties.state || null
     }));
     res.json(results);
   } catch (err) {
@@ -35,10 +36,12 @@ router.get('/reverse', async (req, res) => {
       return res.json({ address: '', lat: parseFloat(lat), lng: parseFloat(lng) });
     }
     const f = data.features[0];
+    const p = f.properties;
     res.json({
-      address: f.properties.formatted,
-      lat: f.properties.lat,
-      lng: f.properties.lon
+      address: p.formatted,
+      lat: p.lat,
+      lng: p.lon,
+      city: p.city || p.county || p.state || null
     });
   } catch (err) {
     console.error('Reverse geocode error:', err.message);

@@ -45,6 +45,8 @@ const Market = () => {
     return item ? item.quantity : 0;
   };
 
+
+
   return (
     <div className="min-h-screen bg-bg">
       <Navbar onCartOpen={() => setCartOpen(true)} />

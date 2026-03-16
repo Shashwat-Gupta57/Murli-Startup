@@ -145,7 +145,7 @@ router.get('/my', authMiddleware, async (req, res) => {
 router.get('/store', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT p.*, b.business_name, b.business_address, b.latitude AS business_lat, b.longitude AS business_lng
+      `SELECT p.*, b.business_name, b.business_address, b.latitude AS business_lat, b.longitude AS business_lng, b.city AS business_city
        FROM products p
        JOIN businesses b ON p.business_id = b.id
        WHERE p.is_available = true AND b.is_active = true

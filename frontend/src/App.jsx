@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Market from './pages/Market';
 import Checkout from './pages/Checkout';
 import ProductDetail from './pages/ProductDetail';
+import AllReviews from './pages/AllReviews';
 import './index.css';
 
 function RootLayout() {
@@ -31,6 +32,7 @@ const router = createBrowserRouter([
       { path: '/market', element: <Market /> },
       { path: '/checkout', element: <Checkout /> },
       { path: '/product/:productId', element: <ProductDetail /> },
+      { path: '/product/:productId/reviews', element: <AllReviews /> },
     ],
   },
 ]);

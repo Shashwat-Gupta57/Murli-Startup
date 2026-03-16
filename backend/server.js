@@ -34,6 +34,7 @@ app.use('/api/products', require('./routes/products'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/geocode', require('./routes/geocode'));
 app.use('/api/addresses', require('./routes/addresses'));
+app.use('/api/reviews', require('./routes/reviews'));
 
 // Global error handler
 app.use((err, req, res, next) => {

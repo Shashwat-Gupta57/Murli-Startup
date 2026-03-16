@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS users (
     role VARCHAR(50) DEFAULT 'customer',
     lat DECIMAL(10,7),
     lng DECIMAL(10,7),
+    city VARCHAR(100),
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -62,6 +63,7 @@ CREATE TABLE IF NOT EXISTS businesses (
     is_active BOOLEAN DEFAULT true,
     latitude DECIMAL(10,7),
     longitude DECIMAL(10,7),
+    city VARCHAR(100),
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -115,3 +117,14 @@ CREATE TABLE IF NOT EXISTS order_items (
     unit_price DECIMAL(10,2) NOT NULL,
     line_total DECIMAL(10,2)
 );
+
+-- 8. Reviews Table
+CREATE TABLE IF NOT EXISTS reviews (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+    customer_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    review_text TEXT,
+    created_at TIMESTAMP DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS reviews_one_per_customer ON reviews(product_id, customer_id);

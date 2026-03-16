@@ -3,6 +3,24 @@ const router = express.Router();
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
 
+const GEOAPIFY_KEY = process.env.GEOAPIFY_KEY;
+
+async function extractCity(lat, lng) {
+  try {
+    const url = `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&apiKey=${GEOAPIFY_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    if (data.features && data.features.length > 0) {
+      const p = data.features[0].properties;
+      return p.city || p.county || p.state || null;
+    }
+    return null;
+  } catch (err) {
+    console.error('City extraction error:', err.message);
+    return null;
+  }
+}
+
 // Geocode address using OpenStreetMap Nominatim
 async function geocodeAddress(address) {
   try {
@@ -38,14 +56,17 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await client.query('BEGIN');
 
+    // Extract city from business coordinates
+    const city = (business_lat && business_lng) ? await extractCity(business_lat, business_lng) : null;
+
     const businessResult = await client.query(
       `INSERT INTO businesses
         (retailer_id, business_name, owner_name, home_phone, business_phone,
-         home_address, business_address, aadhar_number, tags, latitude, longitude)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         home_address, business_address, aadhar_number, tags, latitude, longitude, city)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [req.user.id, business_name, owner_name, home_phone, business_phone,
-       home_address, business_address, aadhar_number, tags || [], business_lat || null, business_lng || null]
+       home_address, business_address, aadhar_number, tags || [], business_lat || null, business_lng || null, city]
     );
 
     const business = businessResult.rows[0];
@@ -87,6 +108,30 @@ router.get('/my', authMiddleware, async (req, res) => {
       [req.user.id]
     );
     res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+});
+
+// POST /api/businesses/backfill-cities — Auto-fill missing city for retailer's businesses
+router.post('/backfill-cities', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, latitude, longitude FROM businesses WHERE retailer_id = $1 AND city IS NULL AND latitude IS NOT NULL AND longitude IS NOT NULL',
+      [req.user.id]
+    );
+    if (result.rows.length === 0) return res.json({ updated: 0 });
+
+    let updated = 0;
+    for (const biz of result.rows) {
+      const city = await extractCity(biz.latitude, biz.longitude);
+      if (city) {
+        await pool.query('UPDATE businesses SET city = $1 WHERE id = $2', [city, biz.id]);
+        updated++;
+      }
+    }
+    res.json({ updated });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: 'Server Error' });
