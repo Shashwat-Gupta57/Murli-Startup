@@ -158,4 +158,24 @@ router.get('/store', async (req, res) => {
   }
 });
 
+// GET /api/products/:id — Public: Get a single product with business details
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(
+      `SELECT p.*, b.business_name, b.business_address, b.business_phone, b.tags,
+              b.latitude AS business_lat, b.longitude AS business_lng
+       FROM products p
+       JOIN businesses b ON p.business_id = b.id
+       WHERE p.id = $1`,
+      [id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Product not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+});
+
 module.exports = router;

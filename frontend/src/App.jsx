@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoration } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
 import Login from './pages/Login';
@@ -6,25 +6,37 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Market from './pages/Market';
 import Checkout from './pages/Checkout';
+import ProductDetail from './pages/ProductDetail';
 import './index.css';
 
-function App() {
+function RootLayout() {
   return (
     <ToastProvider>
       <CartProvider>
-        <Router>
-          <Routes>
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/market" element={<Market />} />
-            <Route path="/checkout" element={<Checkout />} />
-          </Routes>
-        </Router>
+        <ScrollRestoration />
+        <Outlet />
       </CartProvider>
     </ToastProvider>
   );
+}
+
+const router = createBrowserRouter([
+  {
+    element: <RootLayout />,
+    children: [
+      { path: '/', element: <Navigate to="/login" replace /> },
+      { path: '/login', element: <Login /> },
+      { path: '/register', element: <Register /> },
+      { path: '/dashboard', element: <Dashboard /> },
+      { path: '/market', element: <Market /> },
+      { path: '/checkout', element: <Checkout /> },
+      { path: '/product/:productId', element: <ProductDetail /> },
+    ],
+  },
+]);
+
+function App() {
+  return <RouterProvider router={router} />;
 }
 
 export default App;

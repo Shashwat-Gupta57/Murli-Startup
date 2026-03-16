@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,
     customer_id INT REFERENCES users(id) ON DELETE SET NULL,
     business_id INT REFERENCES businesses(id) ON DELETE RESTRICT,
-    items JSONB NOT NULL,
+    items_snapshot JSONB NOT NULL,
     subtotal DECIMAL(10,2) NOT NULL,
     delivery_fee DECIMAL(10,2) DEFAULT 0,
     total DECIMAL(10,2) NOT NULL,
@@ -110,6 +110,8 @@ CREATE TABLE IF NOT EXISTS order_items (
     id SERIAL PRIMARY KEY,
     order_id INT REFERENCES orders(id) ON DELETE CASCADE,
     product_id INT REFERENCES products(id) ON DELETE RESTRICT,
-    qty INT NOT NULL,
-    unit_price DECIMAL(10,2) NOT NULL
+    product_name VARCHAR(255),
+    quantity INT NOT NULL,
+    unit_price DECIMAL(10,2) NOT NULL,
+    line_total DECIMAL(10,2)
 );

@@ -94,30 +94,32 @@ const Market = () => {
                   const atStockLimit = inCart >= product.stock_qty;
                   return (
                     <div key={product.id} className="bg-surface rounded-xl p-3 relative">
-                      {/* Image */}
-                      <div className="aspect-square bg-surface2 rounded-lg mb-3 overflow-hidden relative">
-                        {product.image1_url ? (
-                          <img src={`${UPLOADS_URL}${product.image1_url.replace(/^\/uploads/, '')}`} alt={product.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-text2">
-                            <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                          </div>
-                        )}
-                        {outOfStock && (
-                          <div className="absolute inset-0 bg-bg/70 flex items-center justify-center">
-                            <span className="bg-surface2 text-text2 text-xs font-medium px-3 py-1.5 rounded-full">Out of Stock</span>
-                          </div>
-                        )}
+                      {/* Clickable area — navigates to product detail */}
+                      <div className="cursor-pointer" onClick={() => navigate(`/product/${product.id}`)}>
+                        <div className="aspect-square bg-surface2 rounded-lg mb-3 overflow-hidden relative">
+                          {product.image1_url ? (
+                            <img src={`${UPLOADS_URL}${product.image1_url.replace(/^\/uploads/, '')}`} alt={product.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-text2">
+                              <svg width="32" height="32" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                            </div>
+                          )}
+                          {outOfStock && (
+                            <div className="absolute inset-0 bg-bg/70 flex items-center justify-center">
+                              <span className="bg-surface2 text-text2 text-xs font-medium px-3 py-1.5 rounded-full">Out of Stock</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-text m-0 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{product.name}</p>
+                        <p className="text-xs text-text2 m-0 mt-1">{product.unit}</p>
                       </div>
 
-                      {/* Info */}
-                      <p className="text-sm font-medium text-text m-0 leading-tight" style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{product.name}</p>
-                      <p className="text-xs text-text2 m-0 mt-1">{product.unit}</p>
+                      {/* Price + Cart stepper — NOT inside clickable area */}
                       <div className="flex items-end justify-between mt-2">
                         <p className="text-base font-bold text-text m-0">₹{product.price}</p>
                         {!outOfStock && (
                           inCart > 0 ? (
-                            <div className="flex items-center bg-primary rounded-lg overflow-hidden">
+                            <div className="flex items-center bg-primary rounded-lg overflow-hidden" onClick={e => e.stopPropagation()}>
                               <button onClick={() => updateQuantity(product.id, inCart - 1)}
                                 className="w-7 h-7 border-none bg-primary text-bg cursor-pointer font-bold text-sm flex items-center justify-center hover:bg-primary-hover transition">−</button>
                               <span className="w-5 text-center text-xs font-bold text-bg">{inCart}</span>
@@ -128,7 +130,7 @@ const Market = () => {
                                   ${atStockLimit ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:bg-primary-hover'}`}>+</button>
                             </div>
                           ) : (
-                            <button onClick={() => handleAddToCart(product)}
+                            <button onClick={(e) => { e.stopPropagation(); handleAddToCart(product); }}
                               className="w-8 h-8 rounded-lg bg-primary text-bg border-none cursor-pointer font-bold text-lg flex items-center justify-center hover:bg-primary-hover transition">
                               +
                             </button>
