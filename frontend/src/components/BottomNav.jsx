@@ -17,8 +17,8 @@ const BottomNav = () => {
 
   return (
     <nav
-      className="glass-card glow-purple fixed z-50 flex md:hidden items-center px-2 py-1"
-      style={{ bottom: 24, left: '50%', transform: 'translateX(-50%)', width: 'fit-content', gap: 4 }}
+      className="fixed z-[1000] flex md:hidden items-center px-2 py-1"
+      style={{ bottom: 24, left: '50%', transform: 'translateX(-50%)', width: 'fit-content', gap: 4, background: '#0C0C0C', borderTop: '1px solid #2A2A2A', borderRadius: 24 }}
     >
       {allTabs.map((t, i) => {
         const isActive = location.pathname === t.path;

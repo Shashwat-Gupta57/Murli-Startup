@@ -121,7 +121,7 @@ const Navbar = ({ onCartOpen }) => {
           </button>
 
           {showLocationModal && (
-            <div className="absolute left-0 top-full mt-2 w-72 glass-card overflow-hidden z-50">
+            <div className="absolute left-0 top-full mt-2 w-72 overflow-hidden z-[1000]" style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
               <div className="px-4 py-3 border-b border-white/8">
                 <h4 className="text-sm font-semibold m-0 text-white">Choose delivery address</h4>
               </div>
@@ -129,7 +129,10 @@ const Navbar = ({ onCartOpen }) => {
               <button
                 onClick={handleUseCurrentLocation}
                 disabled={loadingLoc}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-none cursor-pointer hover:bg-white/5 transition text-sm"
+                className="w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-none cursor-pointer transition text-sm"
+                style={{ ':hover': {} }}
+                onMouseEnter={e => e.currentTarget.style.background = '#2A2A2A'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
               >
                 <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <svg width="16" height="16" fill="none" stroke="#F8C200" strokeWidth="2" viewBox="0 0 24 24">
@@ -150,7 +153,9 @@ const Navbar = ({ onCartOpen }) => {
                       <button
                         key={addr.id}
                         onClick={() => selectAddress({ label: addrLabel, address_text: addr.address_text, lat: addr.lat, lng: addr.lng })}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-none cursor-pointer hover:bg-white/5 transition"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-none cursor-pointer transition"
+                        onMouseEnter={e => e.currentTarget.style.background = '#2A2A2A'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                       >
                         <span className="text-lg shrink-0">{labelIcon[addr.label] || '📍'}</span>
                         <div className="min-w-0 flex-1">
@@ -189,20 +194,26 @@ const Navbar = ({ onCartOpen }) => {
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </button>
           {showDropdown && (
-            <div className="absolute right-0 top-full mt-2 w-44 glass-card overflow-hidden z-50">
+            <div className="absolute right-0 top-full mt-2 w-44 overflow-hidden z-[1000]" style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.6)' }}>
               {role !== 'retailer' && (
                 <Link to="/market" onClick={() => setShowDropdown(false)}
-                  className="block px-4 py-2.5 text-sm text-white/80 hover:bg-white/5 no-underline transition">
+                  className="block px-4 py-2.5 text-sm text-white/80 no-underline transition"
+                  onMouseEnter={e => e.currentTarget.style.background = '#2A2A2A'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   My Orders
                 </Link>
               )}
               {role === 'retailer' && (
                 <Link to="/dashboard" onClick={() => setShowDropdown(false)}
-                  className="block px-4 py-2.5 text-sm text-white/80 hover:bg-white/5 no-underline transition">
+                  className="block px-4 py-2.5 text-sm text-white/80 no-underline transition"
+                  onMouseEnter={e => e.currentTarget.style.background = '#2A2A2A'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   Dashboard
                 </Link>
               )}
-              <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 border-none bg-transparent cursor-pointer transition">
+              <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm text-red-400 border-none bg-transparent cursor-pointer transition"
+                onMouseEnter={e => e.currentTarget.style.background = '#2A2A2A'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                 Logout
               </button>
             </div>

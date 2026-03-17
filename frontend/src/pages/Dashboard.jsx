@@ -484,7 +484,7 @@ const Dashboard = () => {
         </aside>
 
         {/* Mobile bottom tabs */}
-        <nav className="glass-card glow-purple fixed z-50 flex md:hidden items-center px-2 py-1" style={{ bottom: 24, left: '50%', transform: 'translateX(-50%)', width: 'fit-content', gap: 4 }}>
+        <nav className="fixed z-[1000] flex md:hidden items-center px-2 py-1" style={{ bottom: 24, left: '50%', transform: 'translateX(-50%)', width: 'fit-content', gap: 4, background: '#0C0C0C', borderTop: '1px solid #2A2A2A', borderRadius: 24 }}>
           {SIDEBAR_TABS.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className="flex flex-col items-center justify-center border-none cursor-pointer text-[10px] transition px-3 py-1.5 rounded-full font-medium"
