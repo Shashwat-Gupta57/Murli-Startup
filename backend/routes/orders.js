@@ -258,4 +258,140 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
   }
 });
 
+// ─── GET /api/orders/analytics — Retailer analytics (enhanced) ─────────────
+router.get('/analytics', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'retailer') return res.status(403).json({ error: 'Only retailers' });
+    const { business_id } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id required' });
+
+    const check = await pool.query('SELECT id FROM businesses WHERE id = $1 AND retailer_id = $2', [business_id, req.user.id]);
+    if (check.rows.length === 0) return res.status(403).json({ error: 'Not your business' });
+
+    // Monthly — last 12 months (with year + month_num)
+    const monthlyRes = await pool.query(`
+      WITH months AS (
+        SELECT generate_series(
+          date_trunc('month', now()) - interval '11 months',
+          date_trunc('month', now()),
+          '1 month'
+        )::date AS m
+      )
+      SELECT to_char(months.m, 'Mon YYYY') AS month,
+             EXTRACT(YEAR FROM months.m)::int AS year,
+             EXTRACT(MONTH FROM months.m)::int AS month_num,
+             COALESCE(SUM(o.subtotal), 0)::numeric AS revenue,
+             COALESCE(SUM(o.delivery_fee), 0)::numeric AS logistics_fees,
+             COUNT(o.id)::int AS order_count
+      FROM months
+      LEFT JOIN orders o ON date_trunc('month', o.created_at) = months.m
+        AND o.business_id = $1 AND o.status = 'delivered'
+      GROUP BY months.m ORDER BY months.m
+    `, [business_id]);
+
+    // Quarterly — last 4 quarters
+    const quarterlyRes = await pool.query(`
+      WITH quarters AS (
+        SELECT generate_series(
+          date_trunc('quarter', now()) - interval '9 months',
+          date_trunc('quarter', now()),
+          '3 months'
+        )::date AS q
+      )
+      SELECT 'Q' || EXTRACT(QUARTER FROM quarters.q)::int || ' ' || EXTRACT(YEAR FROM quarters.q)::int AS quarter,
+             COALESCE(SUM(o.subtotal), 0)::numeric AS revenue,
+             COALESCE(SUM(o.delivery_fee), 0)::numeric AS logistics_fees,
+             COUNT(o.id)::int AS order_count
+      FROM quarters
+      LEFT JOIN orders o ON date_trunc('quarter', o.created_at) = quarters.q
+        AND o.business_id = $1 AND o.status = 'delivered'
+      GROUP BY quarters.q ORDER BY quarters.q
+    `, [business_id]);
+
+    // Yearly — last 3 years
+    const yearlyRes = await pool.query(`
+      WITH years AS (
+        SELECT generate_series(
+          date_trunc('year', now()) - interval '2 years',
+          date_trunc('year', now()),
+          '1 year'
+        )::date AS y
+      )
+      SELECT EXTRACT(YEAR FROM years.y)::int AS year,
+             COALESCE(SUM(o.subtotal), 0)::numeric AS revenue,
+             COALESCE(SUM(o.delivery_fee), 0)::numeric AS logistics_fees,
+             COUNT(o.id)::int AS order_count
+      FROM years
+      LEFT JOIN orders o ON date_trunc('year', o.created_at) = years.y
+        AND o.business_id = $1 AND o.status = 'delivered'
+      GROUP BY years.y ORDER BY years.y
+    `, [business_id]);
+
+    // Summary — rolling windows
+    const summaryRes = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN o.created_at >= now() - interval '3 months' THEN o.subtotal ELSE 0 END), 0)::numeric AS rev_3m,
+        COALESCE(SUM(CASE WHEN o.created_at >= now() - interval '3 months' THEN o.delivery_fee ELSE 0 END), 0)::numeric AS log_3m,
+        COUNT(CASE WHEN o.created_at >= now() - interval '3 months' THEN 1 END)::int AS cnt_3m,
+        COALESCE(SUM(CASE WHEN o.created_at >= now() - interval '6 months' THEN o.subtotal ELSE 0 END), 0)::numeric AS rev_6m,
+        COALESCE(SUM(CASE WHEN o.created_at >= now() - interval '6 months' THEN o.delivery_fee ELSE 0 END), 0)::numeric AS log_6m,
+        COUNT(CASE WHEN o.created_at >= now() - interval '6 months' THEN 1 END)::int AS cnt_6m,
+        COALESCE(SUM(CASE WHEN o.created_at >= now() - interval '12 months' THEN o.subtotal ELSE 0 END), 0)::numeric AS rev_12m,
+        COALESCE(SUM(CASE WHEN o.created_at >= now() - interval '12 months' THEN o.delivery_fee ELSE 0 END), 0)::numeric AS log_12m,
+        COUNT(CASE WHEN o.created_at >= now() - interval '12 months' THEN 1 END)::int AS cnt_12m
+      FROM orders o
+      WHERE o.business_id = $1 AND o.status = 'delivered'
+    `, [business_id]);
+
+    const s = summaryRes.rows[0];
+
+    res.json({
+      monthly: monthlyRes.rows,
+      quarterly: quarterlyRes.rows,
+      yearly: yearlyRes.rows,
+      summary: {
+        last_3_months: { revenue: parseFloat(s.rev_3m), logistics_fees: parseFloat(s.log_3m), order_count: s.cnt_3m },
+        last_6_months: { revenue: parseFloat(s.rev_6m), logistics_fees: parseFloat(s.log_6m), order_count: s.cnt_6m },
+        last_12_months: { revenue: parseFloat(s.rev_12m), logistics_fees: parseFloat(s.log_12m), order_count: s.cnt_12m }
+      }
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+});
+
+// ─── GET /api/orders/top-products — Best sellers ───────────────────────────
+router.get('/top-products', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'retailer') return res.status(403).json({ error: 'Only retailers' });
+    const { business_id, days } = req.query;
+    if (!business_id) return res.status(400).json({ error: 'business_id required' });
+
+    const check = await pool.query('SELECT id FROM businesses WHERE id = $1 AND retailer_id = $2', [business_id, req.user.id]);
+    if (check.rows.length === 0) return res.status(403).json({ error: 'Not your business' });
+
+    const d = parseInt(days) || 30;
+    const result = await pool.query(`
+      SELECT oi.product_name,
+             SUM(oi.quantity)::int AS units_sold,
+             SUM(oi.line_total)::numeric AS revenue
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.business_id = $1
+        AND o.status = 'delivered'
+        AND o.created_at >= now() - ($2 || ' days')::interval
+      GROUP BY oi.product_name
+      ORDER BY units_sold DESC
+      LIMIT 5
+    `, [business_id, d.toString()]);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+});
+
 module.exports = router;
+

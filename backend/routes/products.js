@@ -178,4 +178,29 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// PATCH /api/products/:id/stock — Quick stock update (retailer only)
+router.patch('/:id/stock', authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== 'retailer') return res.status(403).json({ error: 'Only retailers can update stock' });
+    const { id } = req.params;
+    const { stock_qty } = req.body;
+
+    if (stock_qty === undefined || stock_qty === null || !Number.isInteger(stock_qty) || stock_qty < 0) {
+      return res.status(400).json({ error: 'stock_qty must be a non-negative integer' });
+    }
+
+    const check = await pool.query(
+      `SELECT p.id FROM products p JOIN businesses b ON p.business_id = b.id WHERE p.id = $1 AND b.retailer_id = $2`,
+      [id, req.user.id]
+    );
+    if (check.rows.length === 0) return res.status(403).json({ error: 'Product not found or not owned by you' });
+
+    const result = await pool.query('UPDATE products SET stock_qty = $1 WHERE id = $2 RETURNING *', [stock_qty, id]);
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Server Error' });
+  }
+});
+
 module.exports = router;
