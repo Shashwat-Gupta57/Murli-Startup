@@ -26,11 +26,24 @@ export default defineConfig({
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
-      strategies: 'injectManifest',
-      srcDir: 'public',
-      filename: 'sw-push.js',
-      injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+      strategies: 'generateSW',
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/murli\.talken\.in\/api\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 300 }
+            }
+          }
+        ],
+        additionalManifestEntries: [],
+        skipWaiting: true,
+        clientsClaim: true,
+        navigateFallback: '/index.html',
+        pushNotifications: false
       }
     })
   ]

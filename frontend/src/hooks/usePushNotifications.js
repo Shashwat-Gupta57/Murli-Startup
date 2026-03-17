@@ -8,13 +8,15 @@ export function usePushNotifications(user) {
 
     async function subscribe() {
       try {
-        const reg = await navigator.serviceWorker.ready;
-        const existing = await reg.pushManager.getSubscription();
+        const pushReg = await navigator.serviceWorker.register('/sw-push.js', { scope: '/' });
+        await navigator.serviceWorker.ready;
+        
+        const existing = await pushReg.pushManager.getSubscription();
         if (existing) return;
 
         const { data } = await axios.get(`${import.meta.env.VITE_API_URL.replace(/\/api$/, '')}/api/push/vapid-public-key`);
         const converted = urlBase64ToUint8Array(data.publicKey);
-        const subscription = await reg.pushManager.subscribe({
+        const subscription = await pushReg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: converted
         });
