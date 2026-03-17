@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoratio
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
 import { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -10,6 +11,7 @@ import Market from './pages/Market';
 import Checkout from './pages/Checkout';
 import ProductDetail from './pages/ProductDetail';
 import AllReviews from './pages/AllReviews';
+import BlobBackground from './components/BlobBackground';
 import './index.css';
 
 const API = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') : 'http://localhost:5000';
@@ -24,20 +26,27 @@ function clearAllAuth() {
   localStorage.removeItem('selectedCity');
 }
 
+const pageTransition = {
+  initial: { opacity: 0, y: 10 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -10 },
+  transition: { duration: 0.25 },
+};
+
+function PageWrapper({ children }) {
+  return <motion.div {...pageTransition}>{children}</motion.div>;
+}
+
 function RootLayout() {
   const navigate = useNavigate();
 
-  // Background token validation on app load
   useEffect(() => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
     if (token) {
-      // Ensure both keys are in sync
       localStorage.setItem('token', token);
       localStorage.setItem('authToken', token);
-      // Validate token in background
       axios.get(`${API}/api/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
         .then(res => {
-          // Update stored user with fresh data
           localStorage.setItem('authUser', JSON.stringify(res.data));
           localStorage.setItem('role', res.data.role);
         })
@@ -53,6 +62,7 @@ function RootLayout() {
   return (
     <ToastProvider>
       <CartProvider>
+        <BlobBackground />
         <ScrollRestoration />
         <Outlet />
       </CartProvider>
@@ -60,7 +70,6 @@ function RootLayout() {
   );
 }
 
-// Smart redirect: if user has a valid token, go to their dashboard/market
 function SmartRedirect() {
   const token = localStorage.getItem('authToken') || localStorage.getItem('token');
   const role = localStorage.getItem('role');
@@ -75,13 +84,13 @@ const router = createBrowserRouter([
     element: <RootLayout />,
     children: [
       { path: '/', element: <SmartRedirect /> },
-      { path: '/login', element: <Login /> },
-      { path: '/register', element: <Register /> },
-      { path: '/dashboard', element: <Dashboard /> },
-      { path: '/market', element: <Market /> },
-      { path: '/checkout', element: <Checkout /> },
-      { path: '/product/:productId', element: <ProductDetail /> },
-      { path: '/product/:productId/reviews', element: <AllReviews /> },
+      { path: '/login', element: <PageWrapper><Login /></PageWrapper> },
+      { path: '/register', element: <PageWrapper><Register /></PageWrapper> },
+      { path: '/dashboard', element: <PageWrapper><Dashboard /></PageWrapper> },
+      { path: '/market', element: <PageWrapper><Market /></PageWrapper> },
+      { path: '/checkout', element: <PageWrapper><Checkout /></PageWrapper> },
+      { path: '/product/:productId', element: <PageWrapper><ProductDetail /></PageWrapper> },
+      { path: '/product/:productId/reviews', element: <PageWrapper><AllReviews /></PageWrapper> },
     ],
   },
 ]);

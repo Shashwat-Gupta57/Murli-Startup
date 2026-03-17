@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { motion } from 'framer-motion';
 import axios from 'axios';
 
 const API = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') : 'http://localhost:5000';
@@ -15,16 +16,13 @@ const Navbar = ({ onCartOpen }) => {
   const locRef = useRef(null);
   const role = localStorage.getItem('role');
   const token = localStorage.getItem('token');
-  const userName = 'Account';
 
-  // Selected delivery address (full object: { label, address_text, lat, lng })
   const [selectedAddr, setSelectedAddr] = useState(() => {
     try { return JSON.parse(localStorage.getItem('selectedDeliveryAddress')) || null; } catch { return null; }
   });
   const [addresses, setAddresses] = useState([]);
   const [loadingLoc, setLoadingLoc] = useState(false);
 
-  // On mount, if no selected address, try to get user's default address
   useEffect(() => {
     if (!selectedAddr && token && role === 'customer') {
       axios.get(`${API}/api/addresses`, { headers: { Authorization: `Bearer ${token}` } })
@@ -37,11 +35,9 @@ const Navbar = ({ onCartOpen }) => {
           }
         }).catch(() => {});
     }
-    // Clean up old selectedCity key
     localStorage.removeItem('selectedCity');
   }, []);
 
-  // Fetch saved addresses when location modal opens
   useEffect(() => {
     if (showLocationModal && token) {
       axios.get(`${API}/api/addresses`, { headers: { Authorization: `Bearer ${token}` } })
@@ -50,7 +46,6 @@ const Navbar = ({ onCartOpen }) => {
     }
   }, [showLocationModal]);
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handler = e => {
       if (dropRef.current && !dropRef.current.contains(e.target)) setShowDropdown(false);
@@ -84,12 +79,7 @@ const Navbar = ({ onCartOpen }) => {
       async (pos) => {
         try {
           const res = await axios.get(`${API}/api/geocode/reverse?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
-          selectAddress({
-            label: 'Current Location',
-            address_text: res.data.address || 'Current Location',
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          });
+          selectAddress({ label: 'Current Location', address_text: res.data.address || 'Current Location', lat: pos.coords.latitude, lng: pos.coords.longitude });
         } catch { alert('Could not detect location'); }
         finally { setLoadingLoc(false); }
       },
@@ -103,57 +93,56 @@ const Navbar = ({ onCartOpen }) => {
     : 'Select location';
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 bg-bg border-b border-surface2 z-50 flex items-center px-4 md:px-8">
-      {/* Left: brand */}
-      <Link to={role === 'retailer' ? '/dashboard' : '/market'} className="text-primary font-bold text-xl tracking-tight no-underline shrink-0">
+    <motion.nav
+      initial={{ y: -20, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="fixed top-0 left-0 right-0 h-16 glass-nav z-50 flex items-center px-4 md:px-8"
+    >
+      {/* Brand */}
+      <Link to={role === 'retailer' ? '/dashboard' : '/market'} className="gradient-brand font-extrabold text-xl tracking-tight no-underline shrink-0">
         Murli
       </Link>
 
-      {/* Address selector (next to brand, customers only) */}
+      {/* Address selector */}
       {role !== 'retailer' && (
         <div className="relative ml-3" ref={locRef}>
           <button
             onClick={() => setShowLocationModal(!showLocationModal)}
-            className="flex items-center gap-1.5 bg-transparent border-none cursor-pointer text-left py-1 px-2 rounded-lg hover:bg-surface transition max-w-[180px] md:max-w-[240px]"
+            className="glass-pill flex items-center gap-1.5 cursor-pointer text-left py-1.5 px-3 hover:border-white/20 transition max-w-[180px] md:max-w-[240px]"
           >
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-primary shrink-0">
+            <svg width="14" height="14" fill="none" stroke="#F8C200" strokeWidth="2" viewBox="0 0 24 24" className="shrink-0">
               <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
             </svg>
-            <span className="text-xs text-text truncate">
-              {displayLabel}
-            </span>
-            <svg width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-text2 shrink-0">
+            <span className="text-xs text-white/70 truncate">{displayLabel}</span>
+            <svg width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-white/40 shrink-0">
               <path d="M6 9l6 6 6-6"/>
             </svg>
           </button>
 
           {showLocationModal && (
-            <div className="absolute left-0 top-full mt-2 w-72 bg-surface border border-border rounded-xl shadow-xl overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-border">
-                <h4 className="text-sm font-semibold m-0 text-text">Choose delivery address</h4>
+            <div className="absolute left-0 top-full mt-2 w-72 glass-card overflow-hidden z-50">
+              <div className="px-4 py-3 border-b border-white/8">
+                <h4 className="text-sm font-semibold m-0 text-white">Choose delivery address</h4>
               </div>
 
-              {/* Use current location */}
               <button
                 onClick={handleUseCurrentLocation}
                 disabled={loadingLoc}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-none cursor-pointer hover:bg-surface2 transition text-sm"
+                className="w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-none cursor-pointer hover:bg-white/5 transition text-sm"
               >
                 <span className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="text-primary">
+                  <svg width="16" height="16" fill="none" stroke="#F8C200" strokeWidth="2" viewBox="0 0 24 24">
                     <path d="M12 2v2m0 16v2M2 12h2m16 0h2M12 8a4 4 0 100 8 4 4 0 000-8z"/>
                   </svg>
                 </span>
-                <span className="text-primary font-medium">
-                  {loadingLoc ? 'Detecting...' : 'Use current location'}
-                </span>
+                <span className="text-primary font-medium">{loadingLoc ? 'Detecting...' : 'Use current location'}</span>
               </button>
 
-              {/* Saved addresses */}
               {addresses.length > 0 && (
                 <>
-                  <div className="px-4 py-2 bg-surface2/50">
-                    <span className="text-[11px] text-text2 uppercase tracking-wide font-medium">Saved Addresses</span>
+                  <div className="px-4 py-2 bg-white/3">
+                    <span className="text-[11px] text-white/40 uppercase tracking-wide font-medium">Saved Addresses</span>
                   </div>
                   {addresses.map(addr => {
                     const addrLabel = addr.label === 'other' ? (addr.custom_label || 'Other') : addr.label;
@@ -161,12 +150,12 @@ const Navbar = ({ onCartOpen }) => {
                       <button
                         key={addr.id}
                         onClick={() => selectAddress({ label: addrLabel, address_text: addr.address_text, lat: addr.lat, lng: addr.lng })}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-none cursor-pointer hover:bg-surface2 transition"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-transparent border-none cursor-pointer hover:bg-white/5 transition"
                       >
                         <span className="text-lg shrink-0">{labelIcon[addr.label] || '📍'}</span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-text m-0 capitalize">{addrLabel}</p>
-                          <p className="text-xs text-text2 m-0 truncate">{addr.address_text}</p>
+                          <p className="text-sm font-medium text-white m-0 capitalize">{addrLabel}</p>
+                          <p className="text-xs text-white/40 m-0 truncate">{addr.address_text}</p>
                         </div>
                         {addr.is_default && <span className="text-[10px] text-primary font-medium shrink-0">Default</span>}
                       </button>
@@ -179,17 +168,16 @@ const Navbar = ({ onCartOpen }) => {
         </div>
       )}
 
-      {/* Spacer */}
       <div className="flex-1" />
 
       {/* Right: cart + account */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         {role !== 'retailer' && (
-          <button onClick={onCartOpen} className="relative flex items-center gap-1.5 bg-surface hover:bg-surface2 text-text px-3 py-2 rounded-lg transition cursor-pointer border-none text-sm font-medium">
-            <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
-            Cart
+          <button onClick={onCartOpen} className="glass-pill relative flex items-center gap-1.5 cursor-pointer px-3 py-2 text-sm text-white/80 hover:bg-white/10 transition">
+            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z"/></svg>
+            <span className="hidden sm:inline">Cart</span>
             {totalItems > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-primary text-bg text-[11px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-primary text-black text-[11px] font-bold flex items-center justify-center">
                 {totalItems}
               </span>
             )}
@@ -197,32 +185,31 @@ const Navbar = ({ onCartOpen }) => {
         )}
 
         <div className="relative" ref={dropRef}>
-          <button onClick={() => setShowDropdown(!showDropdown)} className="flex items-center gap-1.5 bg-surface hover:bg-surface2 text-text px-3 py-2 rounded-lg transition cursor-pointer border-none text-sm">
-            <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span className="hidden md:inline">{userName}</span>
+          <button onClick={() => setShowDropdown(!showDropdown)} className="glass-pill flex items-center gap-1.5 cursor-pointer px-3 py-2 text-sm text-white/80 hover:bg-white/10 transition">
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           </button>
           {showDropdown && (
-            <div className="absolute right-0 top-full mt-2 w-44 bg-surface border border-border rounded-xl shadow-xl overflow-hidden z-50">
+            <div className="absolute right-0 top-full mt-2 w-44 glass-card overflow-hidden z-50">
               {role !== 'retailer' && (
-                <Link to="/market" onClick={() => { setShowDropdown(false); }}
-                  className="block px-4 py-2.5 text-sm text-text hover:bg-surface2 no-underline transition">
+                <Link to="/market" onClick={() => setShowDropdown(false)}
+                  className="block px-4 py-2.5 text-sm text-white/80 hover:bg-white/5 no-underline transition">
                   My Orders
                 </Link>
               )}
               {role === 'retailer' && (
-                <Link to="/dashboard" onClick={() => { setShowDropdown(false); }}
-                  className="block px-4 py-2.5 text-sm text-text hover:bg-surface2 no-underline transition">
+                <Link to="/dashboard" onClick={() => setShowDropdown(false)}
+                  className="block px-4 py-2.5 text-sm text-white/80 hover:bg-white/5 no-underline transition">
                   Dashboard
                 </Link>
               )}
-              <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm text-danger hover:bg-surface2 border-none bg-transparent cursor-pointer transition">
+              <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 border-none bg-transparent cursor-pointer transition">
                 Logout
               </button>
             </div>
           )}
         </div>
       </div>
-    </nav>
+    </motion.nav>
   );
 };
 

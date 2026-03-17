@@ -47,18 +47,18 @@ const AddressAutocomplete = ({ value, onChange, onSelect, placeholder = 'Start t
         <input
           type="text" value={value} onChange={handleInputChange}
           onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
-          className="w-full px-4 py-3 bg-surface2 border border-border rounded-lg text-text text-sm focus:border-primary focus:outline-none transition placeholder:text-text2"
+          className="glass-input w-full px-4 py-3 text-sm"
           placeholder={placeholder} autoComplete="off"
         />
         {loading && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-border border-t-primary rounded-full animate-spin" />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 border-2 border-white/15 border-t-primary rounded-full animate-spin" />
         )}
       </div>
       {showDropdown && suggestions.length > 0 && (
-        <ul className="absolute top-full left-0 right-0 mt-1 z-50 bg-surface border border-border rounded-xl shadow-xl max-h-52 overflow-y-auto list-none p-1 m-0">
+        <ul className="absolute top-full left-0 right-0 mt-1 z-50 glass-card max-h-52 overflow-y-auto list-none p-1 m-0">
           {suggestions.map((s, i) => (
             <li key={i} onClick={() => handleSelect(s)}
-              className="flex items-start gap-2 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-text hover:bg-surface2 transition leading-relaxed">
+              className="flex items-start gap-2 px-3 py-2.5 rounded-lg cursor-pointer text-sm text-white hover:bg-white/5 transition leading-relaxed">
               <span className="text-primary shrink-0 mt-0.5">📍</span>
               <span>{s.label}</span>
             </li>

@@ -3,6 +3,12 @@ import React, { createContext, useContext, useState, useCallback, useRef } from 
 const ToastCtx = createContext();
 export const useToast = () => useContext(ToastCtx);
 
+const borderColors = {
+  success: '#1DBF73',
+  error: '#FF4D4D',
+  warning: '#F8C200',
+};
+
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
   const idRef = useRef(0);
@@ -20,9 +26,16 @@ export const ToastProvider = ({ children }) => {
         {toasts.map(t => (
           <div
             key={t.id}
-            className={`pointer-events-auto px-5 py-3 rounded-lg bg-surface text-sm text-text shadow-lg
-              border-l-4 ${t.type === 'error' ? 'border-danger' : 'border-primary'}
-              animate-[slideUp_0.3s_ease-out]`}
+            className="pointer-events-auto px-5 py-3 rounded-xl text-sm animate-[slideUp_0.3s_ease-out]"
+            style={{
+              background: 'rgba(15, 15, 25, 0.95)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+              borderLeft: `4px solid ${borderColors[t.type] || borderColors.success}`,
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.6)',
+              color: '#FFFFFF',
+            }}
           >
             {t.message}
           </div>
