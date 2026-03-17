@@ -12,8 +12,17 @@ const Login = () => {
     e.preventDefault();
     try {
       const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/login`, { email, password });
+      // Clear stale data from any previous user
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('authUser');
+      localStorage.removeItem('cartData');
+      localStorage.removeItem('selectedDeliveryAddress');
+      localStorage.removeItem('selectedCity');
+      // Save new auth data
       localStorage.setItem('token', res.data.token);
+      localStorage.setItem('authToken', res.data.token);
       localStorage.setItem('role', res.data.user.role);
+      localStorage.setItem('authUser', JSON.stringify(res.data.user));
       navigate(res.data.user.role === 'retailer' ? '/dashboard' : '/market');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');

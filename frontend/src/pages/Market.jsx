@@ -16,7 +16,7 @@ const CATEGORIES = ['All', 'General Store', 'Stationary', 'Bookstore', 'Medical'
 
 const Market = () => {
   const navigate = useNavigate();
-  const { items, addToCart, updateQuantity, totalItems } = useCart();
+  const { items, addToCart, updateQuantity, totalItems, pruneUnavailable } = useCart();
   const { showToast } = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,6 +34,9 @@ const Market = () => {
     try {
       const res = await axios.get(`${API}/api/products/store`);
       setProducts(res.data);
+      // Prune cart items whose products are no longer available
+      const availableIds = new Set(res.data.map(p => p.id));
+      pruneUnavailable(availableIds);
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };

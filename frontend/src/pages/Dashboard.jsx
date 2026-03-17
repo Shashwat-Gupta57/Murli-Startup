@@ -52,7 +52,7 @@ const Dashboard = () => {
       .catch(() => {});
   }, [navigate]);
 
-  const handleLogout = () => { localStorage.removeItem('token'); localStorage.removeItem('role'); navigate('/login'); };
+  const handleLogout = () => { localStorage.removeItem('token'); localStorage.removeItem('authToken'); localStorage.removeItem('authUser'); localStorage.removeItem('role'); localStorage.removeItem('cartData'); localStorage.removeItem('selectedDeliveryAddress'); localStorage.removeItem('selectedCity'); navigate('/login'); };
   const handleDeleteProduct = async id => {
     if (!window.confirm('Delete this product?')) return;
     try { await axios.delete(`${API}/api/products/${id}`, { headers: { Authorization: `Bearer ${token}` } }); fetchProducts(); }

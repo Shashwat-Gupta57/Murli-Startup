@@ -62,8 +62,12 @@ const Navbar = ({ onCartOpen }) => {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('authUser');
     localStorage.removeItem('role');
+    localStorage.removeItem('cartData');
     localStorage.removeItem('selectedDeliveryAddress');
+    localStorage.removeItem('selectedCity');
     navigate('/login');
   };
 

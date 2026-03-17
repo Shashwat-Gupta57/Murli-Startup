@@ -31,8 +31,17 @@ const Register = () => {
     const role = isRetailer ? 'retailer' : 'customer';
     try {
       const res = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/register`, { name, email, password, phone, address, role, lat, lng });
+      // Clear stale data from any previous user
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('authUser');
+      localStorage.removeItem('cartData');
+      localStorage.removeItem('selectedDeliveryAddress');
+      localStorage.removeItem('selectedCity');
+      // Save new auth data
       localStorage.setItem('token', res.data.token);
+      localStorage.setItem('authToken', res.data.token);
       localStorage.setItem('role', res.data.user.role);
+      localStorage.setItem('authUser', JSON.stringify(res.data.user));
       navigate(role === 'retailer' ? '/dashboard' : '/market');
     } catch (err) {
       const errMsg = err.response?.data?.error;

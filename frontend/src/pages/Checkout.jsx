@@ -37,9 +37,28 @@ const Checkout = () => {
         ]);
         setUserProfile(profileRes.data);
         setSavedAddresses(addrRes.data);
-        // Pre-select default address
-        const def = addrRes.data.find(a => a.is_default);
-        if (def) setSelectedAddrId(def.id);
+
+        // Pre-populate from selectedDeliveryAddress in localStorage
+        const storedAddr = (() => { try { return JSON.parse(localStorage.getItem('selectedDeliveryAddress')); } catch { return null; } })();
+        if (storedAddr && addrRes.data.length > 0) {
+          // Try to match with saved addresses by lat/lng
+          const match = addrRes.data.find(a =>
+            parseFloat(a.lat).toFixed(5) === parseFloat(storedAddr.lat).toFixed(5) &&
+            parseFloat(a.lng).toFixed(5) === parseFloat(storedAddr.lng).toFixed(5)
+          );
+          if (match) {
+            setSelectedAddrId(match.id);
+          } else {
+            // Use as custom address
+            setAddressMode('new');
+            setCustomAddress(storedAddr.address_text || '');
+            setDeliveryCoords({ lat: storedAddr.lat, lng: storedAddr.lng });
+          }
+        } else {
+          // Fallback to default address
+          const def = addrRes.data.find(a => a.is_default);
+          if (def) setSelectedAddrId(def.id);
+        }
       } catch (err) { console.error(err); }
     };
     init();
