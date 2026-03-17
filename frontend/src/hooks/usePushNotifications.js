@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import axios from 'axios';
 
+const API = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') : 'http://localhost:5000';
+
 export function usePushNotifications(user) {
   useEffect(() => {
     if (!user) return;
@@ -8,22 +10,21 @@ export function usePushNotifications(user) {
 
     async function subscribe() {
       try {
-        const pushReg = await navigator.serviceWorker.register('/sw-push.js', { scope: '/' });
-        await navigator.serviceWorker.ready;
-        
-        const existing = await pushReg.pushManager.getSubscription();
-        if (existing) return;
+        const reg = await navigator.serviceWorker.ready;
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) return; // already subscribed
 
-        const { data } = await axios.get(`${import.meta.env.VITE_API_URL.replace(/\/api$/, '')}/api/push/vapid-public-key`);
+        const { data } = await axios.get(`${API}/api/push/vapid-public-key`);
         const converted = urlBase64ToUint8Array(data.publicKey);
-        const subscription = await pushReg.pushManager.subscribe({
+        const subscription = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: converted
         });
-        await axios.post(`${import.meta.env.VITE_API_URL.replace(/\/api$/, '')}/api/push/subscribe`,
+        await axios.post(`${API}/api/push/subscribe`,
           { subscription },
           { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
         );
+        console.log('Push subscription registered');
       } catch (err) {
         console.error('Push subscription failed:', err);
       }

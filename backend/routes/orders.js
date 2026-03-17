@@ -84,37 +84,50 @@ router.post('/', authMiddleware, async (req, res) => {
     }
     for (const item of items) {
       await client.query('UPDATE products SET stock_qty = stock_qty - $1 WHERE id = $2', [item.quantity, item.product_id]);
-      const updatedProduct = await client.query('SELECT stock_qty, name, business_id FROM products WHERE id = $1', [item.product_id]);
-      const p = updatedProduct.rows[0];
-      if (p.stock_qty <= 5) {
-        const biz = await client.query('SELECT retailer_id FROM businesses WHERE id = $1', [p.business_id]);
-        await sendPushToUser(biz.rows[0].retailer_id, {
-          title: 'Low Stock Alert',
-          body: `"${p.name}" has only ${p.stock_qty} units left.`,
-          icon: '/icons/icon-192.png',
-          url: '/dashboard'
-        });
-      }
-    }
-
-    try {
-      await sendPushToUser(req.user.id, {
-        title: 'Order Placed!',
-        body: 'Your order has been placed successfully. Waiting for confirmation.',
-        icon: '/icons/icon-192.png',
-        url: '/orders'
-      });
-      const bizOwner = await client.query('SELECT retailer_id FROM businesses WHERE id = $1', [business_id]);
-      await sendPushToUser(bizOwner.rows[0].retailer_id, {
-        title: 'New Order Received!',
-        body: `You have a new order. Total: ₹${total}`,
-        icon: '/icons/icon-192.png',
-        url: '/dashboard'
-      });
-    } catch (e) {
-      console.error('Push failed locally inside orders', e);
     }
     await client.query('COMMIT');
+
+    // ── Push notifications (fire-and-forget) ──
+    // Notify customer
+    sendPushToUser(req.user.id, {
+      title: 'Order Placed!',
+      body: 'Your order has been placed successfully. Waiting for confirmation.',
+      icon: '/icons/icon-192.png',
+      url: '/market'
+    }).catch(() => {});
+
+    // Notify retailer
+    pool.query('SELECT retailer_id FROM businesses WHERE id = $1', [business_id])
+      .then(bizOwner => {
+        if (bizOwner.rows.length > 0) {
+          sendPushToUser(bizOwner.rows[0].retailer_id, {
+            title: 'New Order Received!',
+            body: `You have a new order. Total: ₹${total}`,
+            icon: '/icons/icon-192.png',
+            url: '/dashboard'
+          }).catch(() => {});
+        }
+      }).catch(() => {});
+
+    // Low stock alerts (fire-and-forget)
+    for (const item of items) {
+      pool.query('SELECT stock_qty, name, business_id FROM products WHERE id = $1', [item.product_id])
+        .then(async (updatedProduct) => {
+          const p = updatedProduct.rows[0];
+          if (p && p.stock_qty <= 5) {
+            const biz = await pool.query('SELECT retailer_id FROM businesses WHERE id = $1', [p.business_id]);
+            if (biz.rows.length > 0) {
+              sendPushToUser(biz.rows[0].retailer_id, {
+                title: 'Low Stock Alert',
+                body: `"${p.name}" has only ${p.stock_qty} units left.`,
+                icon: '/icons/icon-192.png',
+                url: '/dashboard'
+              }).catch(() => {});
+            }
+          }
+        }).catch(() => {});
+    }
+
     res.json({ order, items: orderItems });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -223,6 +236,7 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
 
     const updated = await pool.query('UPDATE orders SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
 
+    // ── Push notification to customer on status change (fire-and-forget) ──
     const messages = {
       accepted: { title: 'Order Confirmed!', body: 'Your order has been accepted by the store.' },
       out_for_delivery: { title: 'Out for Delivery!', body: 'Your order is on its way to you.' },
@@ -230,11 +244,11 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
       cancelled: { title: 'Order Cancelled', body: 'Your order has been cancelled.' }
     };
     if (messages[status]) {
-      await sendPushToUser(order.customer_id, {
+      sendPushToUser(order.customer_id, {
         ...messages[status],
         icon: '/icons/icon-192.png',
-        url: '/orders'
-      });
+        url: '/market'
+      }).catch(() => {});
     }
 
     res.json(updated.rows[0]);

@@ -2,9 +2,9 @@ import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoratio
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
 import { useEffect, useState } from 'react';
-import { usePushNotifications } from './hooks/usePushNotifications';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
@@ -41,13 +41,8 @@ function PageWrapper({ children }) {
 function RootLayout() {
   const navigate = useNavigate();
   const [user, setUser] = useState(() => {
-    try {
-      const stored = localStorage.getItem('authUser');
-      return stored ? JSON.parse(stored) : null;
-    } catch { return null; }
+    try { return JSON.parse(localStorage.getItem('authUser')); } catch { return null; }
   });
-
-  usePushNotifications(user);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
@@ -63,11 +58,14 @@ function RootLayout() {
         .catch(err => {
           if (err.response?.status === 401) {
             clearAllAuth();
+            setUser(null);
             navigate('/login');
           }
         });
     }
   }, []);
+
+  usePushNotifications(user);
 
   return (
     <ToastProvider>
