@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
+const { sendPushToUser } = require('../utils/sendPush');
 
 // ─── Haversine ─────────────────────────────────────────────────────────────
 function haversineMeters(lat1, lon1, lat2, lon2) {
@@ -83,6 +84,35 @@ router.post('/', authMiddleware, async (req, res) => {
     }
     for (const item of items) {
       await client.query('UPDATE products SET stock_qty = stock_qty - $1 WHERE id = $2', [item.quantity, item.product_id]);
+      const updatedProduct = await client.query('SELECT stock_qty, name, business_id FROM products WHERE id = $1', [item.product_id]);
+      const p = updatedProduct.rows[0];
+      if (p.stock_qty <= 5) {
+        const biz = await client.query('SELECT retailer_id FROM businesses WHERE id = $1', [p.business_id]);
+        await sendPushToUser(biz.rows[0].retailer_id, {
+          title: 'Low Stock Alert',
+          body: `"${p.name}" has only ${p.stock_qty} units left.`,
+          icon: '/icons/icon-192.png',
+          url: '/dashboard'
+        });
+      }
+    }
+
+    try {
+      await sendPushToUser(req.user.id, {
+        title: 'Order Placed!',
+        body: 'Your order has been placed successfully. Waiting for confirmation.',
+        icon: '/icons/icon-192.png',
+        url: '/orders'
+      });
+      const bizOwner = await client.query('SELECT retailer_id FROM businesses WHERE id = $1', [business_id]);
+      await sendPushToUser(bizOwner.rows[0].retailer_id, {
+        title: 'New Order Received!',
+        body: `You have a new order. Total: ₹${total}`,
+        icon: '/icons/icon-192.png',
+        url: '/dashboard'
+      });
+    } catch (e) {
+      console.error('Push failed locally inside orders', e);
     }
     await client.query('COMMIT');
     res.json({ order, items: orderItems });
@@ -192,6 +222,21 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
     }
 
     const updated = await pool.query('UPDATE orders SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
+
+    const messages = {
+      accepted: { title: 'Order Confirmed!', body: 'Your order has been accepted by the store.' },
+      out_for_delivery: { title: 'Out for Delivery!', body: 'Your order is on its way to you.' },
+      delivered: { title: 'Order Delivered!', body: 'Your order has been delivered. Enjoy!' },
+      cancelled: { title: 'Order Cancelled', body: 'Your order has been cancelled.' }
+    };
+    if (messages[status]) {
+      await sendPushToUser(order.customer_id, {
+        ...messages[status],
+        icon: '/icons/icon-192.png',
+        url: '/orders'
+      });
+    }
+
     res.json(updated.rows[0]);
   } catch (err) {
     console.error(err.message);

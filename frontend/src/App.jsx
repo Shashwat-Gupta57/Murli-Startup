@@ -1,7 +1,8 @@
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, ScrollRestoration, useNavigate } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { ToastProvider } from './context/ToastContext';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import Login from './pages/Login';
@@ -39,6 +40,14 @@ function PageWrapper({ children }) {
 
 function RootLayout() {
   const navigate = useNavigate();
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('authUser');
+      return stored ? JSON.parse(stored) : null;
+    } catch { return null; }
+  });
+
+  usePushNotifications(user);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('token');
@@ -49,6 +58,7 @@ function RootLayout() {
         .then(res => {
           localStorage.setItem('authUser', JSON.stringify(res.data));
           localStorage.setItem('role', res.data.role);
+          setUser(res.data);
         })
         .catch(err => {
           if (err.response?.status === 401) {
