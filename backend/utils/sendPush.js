@@ -24,4 +24,28 @@ async function sendPushToUser(userId, payload) {
   }
 }
 
-module.exports = { sendPushToUser };
+async function sendPushToDeliveryPartners(businessId, payload) {
+  try {
+    const result = await pool.query(
+      'SELECT push_subscription FROM delivery_sessions WHERE business_id = $1 AND push_subscription IS NOT NULL',
+      [businessId]
+    );
+    const payloadStr = JSON.stringify(payload);
+    for (const row of result.rows) {
+      try {
+        await webpush.sendNotification(row.push_subscription, payloadStr);
+      } catch (err) {
+        if (err.statusCode === 410) {
+          await pool.query(
+            "DELETE FROM delivery_sessions WHERE business_id = $1 AND push_subscription->>'endpoint' = $2",
+            [businessId, row.push_subscription.endpoint]
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error('Delivery push error:', err.message);
+  }
+}
+
+module.exports = { sendPushToUser, sendPushToDeliveryPartners };

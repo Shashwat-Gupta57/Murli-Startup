@@ -234,7 +234,15 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: `Cannot transition from '${order.status}' to '${status}'` });
     }
 
-    const updated = await pool.query('UPDATE orders SET status = $1 WHERE id = $2 RETURNING *', [status, id]);
+    // Generate OTP when status changes to 'accepted'
+    let otp = null;
+    if (status === 'accepted') {
+      otp = String(Math.floor(100000 + Math.random() * 900000));
+      await pool.query('UPDATE orders SET status = $1, otp = $2, otp_attempts = 0 WHERE id = $3', [status, otp, id]);
+    } else {
+      await pool.query('UPDATE orders SET status = $1 WHERE id = $2', [status, id]);
+    }
+    const updated = await pool.query('SELECT * FROM orders WHERE id = $1', [id]);
 
     // ── Push notification to customer on status change (fire-and-forget) ──
     const messages = {
@@ -246,6 +254,16 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
     if (messages[status]) {
       sendPushToUser(order.customer_id, {
         ...messages[status],
+        icon: '/icons/icon-192.png',
+        url: '/market'
+      }).catch(() => {});
+    }
+
+    // Send OTP to customer when accepted
+    if (status === 'accepted' && otp) {
+      sendPushToUser(order.customer_id, {
+        title: 'Your Delivery OTP',
+        body: `Your OTP for order #${id} is: ${otp}. Share only with your delivery partner.`,
         icon: '/icons/icon-192.png',
         url: '/market'
       }).catch(() => {});

@@ -36,6 +36,7 @@ app.use('/api/geocode', require('./routes/geocode'));
 app.use('/api/addresses', require('./routes/addresses'));
 app.use('/api/reviews', require('./routes/reviews'));
 app.use('/api/push', require('./routes/push'));
+app.use('/api/delivery', require('./routes/delivery'));
 
 // Global error handler
 app.use((err, req, res, next) => {
