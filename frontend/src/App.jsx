@@ -12,6 +12,8 @@ import Market from './pages/Market';
 import Checkout from './pages/Checkout';
 import ProductDetail from './pages/ProductDetail';
 import AllReviews from './pages/AllReviews';
+import DeliveryDashboard from './pages/DeliveryDashboard';
+import DeliveryOrderDetail from './pages/DeliveryOrderDetail';
 import BlobBackground from './components/BlobBackground';
 import './index.css';
 
@@ -99,6 +101,8 @@ const router = createBrowserRouter([
       { path: '/checkout', element: <PageWrapper><Checkout /></PageWrapper> },
       { path: '/product/:productId', element: <PageWrapper><ProductDetail /></PageWrapper> },
       { path: '/product/:productId/reviews', element: <PageWrapper><AllReviews /></PageWrapper> },
+      { path: '/delivery', element: <PageWrapper><DeliveryDashboard /></PageWrapper> },
+      { path: '/delivery/order/:id', element: <PageWrapper><DeliveryOrderDetail /></PageWrapper> },
     ],
   },
 ]);

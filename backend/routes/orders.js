@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const authMiddleware = require('../middleware/auth');
-const { sendPushToUser } = require('../utils/sendPush');
+const { sendPushToUser, sendPushToDeliveryPartners } = require('../utils/sendPush');
 
 // ─── Haversine ─────────────────────────────────────────────────────────────
 function haversineMeters(lat1, lon1, lat2, lon2) {
@@ -266,6 +266,14 @@ router.patch('/:id/status', authMiddleware, async (req, res) => {
         body: `Your OTP for order #${id} is: ${otp}. Share only with your delivery partner.`,
         icon: '/icons/icon-192.png',
         url: '/market'
+      }).catch(() => {});
+
+      // Notify delivery partners
+      sendPushToDeliveryPartners(order.business_id, {
+        title: '🚚 New Order Ready!',
+        body: `Order #${id} — ₹${order.total || order.subtotal} — ready for pickup`,
+        icon: '/icons/icon-192.png',
+        url: '/delivery'
       }).catch(() => {});
     }
 

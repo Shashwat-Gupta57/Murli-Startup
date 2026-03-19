@@ -111,7 +111,88 @@ const Login = () => {
             Don't have an account? <Link to="/register" className="text-primary font-medium no-underline hover:underline">Sign Up</Link>
           </p>
         </motion.div>
+
+        {/* ─── Delivery Partner Section ─── */}
+        <DeliveryPartnerEntry />
       </div>
+    </div>
+  );
+};
+
+/* Delivery Partner Entry — below main login form */
+const DeliveryPartnerEntry = () => {
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (code.length < 5) { setError('Enter a valid 5-character code'); return; }
+    setLoading(true);
+    setError('');
+    try {
+      const apiBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+      const res = await axios.post(`${apiBase}/api/delivery/login`, {
+        delivery_code: code
+      });
+      localStorage.setItem('deliverySession', JSON.stringify({
+        delivery_code: res.data.delivery_code,
+        business_id: res.data.business_id,
+        business_name: res.data.business_name,
+      }));
+      navigate('/delivery');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Invalid delivery code');
+    }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="relative z-10 w-full max-w-[440px] mx-auto mt-6">
+      {/* Divider */}
+      <div style={{ height: 3, background: '#F8C200', borderRadius: 2, margin: '0 0 20px 0' }} />
+
+      {/* Toggle button */}
+      <button onClick={() => setOpen(!open)}
+        style={{
+          width: '100%', height: 56, background: '#1C1C1C', border: '2px solid #F8C200',
+          borderRadius: 12, color: '#F8C200', fontSize: 16, fontWeight: 'bold', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+        }}>
+        🚚 I AM A DELIVERY PARTNER
+      </button>
+
+      {open && (
+        <div style={{ marginTop: 16, background: '#1C1C1C', borderRadius: 16, padding: 24, border: '1px solid #2A2A2A' }}>
+          <p style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', margin: '0 0 16px 0', textAlign: 'center' }}>
+            Enter Your Delivery Code
+          </p>
+          <input
+            type="text"
+            value={code}
+            onChange={e => setCode(e.target.value.toUpperCase().slice(0, 5))}
+            maxLength={5}
+            placeholder="e.g. 7829K"
+            style={{
+              width: '100%', height: 52, background: '#2A2A2A', border: '2px solid #3A3A3A',
+              borderRadius: 12, color: '#F8C200', fontSize: 24, fontWeight: 'bold', textAlign: 'center',
+              letterSpacing: 8, outline: 'none', boxSizing: 'border-box', fontFamily: 'monospace',
+            }}
+            onFocus={e => e.target.style.borderColor = '#F8C200'}
+            onBlur={e => e.target.style.borderColor = '#3A3A3A'}
+          />
+          {error && <p style={{ color: '#DC2626', fontSize: 18, fontWeight: 'bold', textAlign: 'center', margin: '12px 0 0 0' }}>{error}</p>}
+          <button onClick={handleSubmit} disabled={loading || code.length < 5}
+            style={{
+              width: '100%', height: 56, background: '#F8C200', color: '#000', border: 'none',
+              borderRadius: 12, fontSize: 18, fontWeight: 'bold', cursor: 'pointer', marginTop: 16,
+              opacity: (loading || code.length < 5) ? 0.5 : 1,
+            }}>
+            {loading ? 'CONNECTING...' : 'OPEN DELIVERY APP'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

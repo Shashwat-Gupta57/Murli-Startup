@@ -6,6 +6,7 @@ import CreateBusiness from './CreateBusiness';
 import ProductForm from '../components/ProductForm';
 import IncomingOrders from '../components/IncomingOrders';
 import Navbar from '../components/Navbar';
+import { useToast } from '../context/ToastContext';
 
 const API = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') : 'http://localhost:5000';
 const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || `${API}/uploads`;
@@ -15,6 +16,7 @@ const SIDEBAR_TABS = [
   { key: 'products', label: 'My Products', icon: '📋' },
   { key: 'analytics', label: 'Analytics', icon: '📊' },
   { key: 'stock', label: 'Update Stock', icon: '📦' },
+  { key: 'delivery', label: 'Delivery Partners', icon: '🚚' },
 ];
 
 /* ═══════════════ Analytics Tab — Full Dashboard ═══════════════ */
@@ -405,6 +407,231 @@ const UpdateStockTab = ({ businesses, selectedBiz, setSelectedBiz, products, set
   );
 };
 
+/* ═══════════════ Delivery Partners Tab ═══════════════ */
+const DeliveryPartnersTab = ({ businesses, selectedBiz, setSelectedBiz, token }) => {
+  const toast = useToast();
+  const [deliveryCode, setDeliveryCode] = useState('');
+  const [regenerating, setRegenerating] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [otpModal, setOtpModal] = useState(null); // order object
+  const [otpValue, setOtpValue] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [verifying, setVerifying] = useState(false);
+
+  const currentBiz = businesses.find(b => b.id === selectedBiz);
+
+  useEffect(() => {
+    if (currentBiz) setDeliveryCode(currentBiz.delivery_code || '');
+  }, [currentBiz]);
+
+  const fetchOrders = useCallback(async () => {
+    if (!selectedBiz) return;
+    setLoadingOrders(true);
+    try {
+      const res = await axios.get(`${API}/api/orders`, {
+        params: { business_id: selectedBiz },
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOrders(res.data.filter(o => o.status === 'accepted' || o.status === 'out_for_delivery'));
+    } catch (err) { console.error(err); }
+    finally { setLoadingOrders(false); }
+  }, [selectedBiz, token]);
+
+  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  const handleRegenerate = async () => {
+    if (!window.confirm('Regenerating will log out all existing delivery partners. Continue?')) return;
+    setRegenerating(true);
+    try {
+      const res = await axios.post(`${API}/api/businesses/${selectedBiz}/regenerate-delivery-code`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDeliveryCode(res.data.delivery_code);
+      toast?.showToast?.('Code regenerated — share the new code with your partners', 'success');
+    } catch (err) {
+      toast?.showToast?.('Failed to regenerate code', 'error');
+    }
+    finally { setRegenerating(false); }
+  };
+
+  const handleMarkOutForDelivery = async (orderId) => {
+    try {
+      await axios.patch(`${API}/api/orders/${orderId}/status`, { status: 'out_for_delivery' }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast?.showToast?.('Order marked out for delivery', 'success');
+      fetchOrders();
+    } catch (err) {
+      toast?.showToast?.(err.response?.data?.error || 'Failed to update', 'error');
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpModal || !otpValue) return;
+    setVerifying(true);
+    setOtpError('');
+    try {
+      const res = await axios.post(`${API}/api/delivery/orders/${otpModal.id}/verify-otp`, {
+        delivery_code: deliveryCode,
+        otp: otpValue
+      });
+      if (res.data.success) {
+        toast?.showToast?.('Order delivered successfully', 'success');
+        setOtpModal(null);
+        setOtpValue('');
+        fetchOrders();
+      } else if (res.data.cancelled) {
+        toast?.showToast?.('Order cancelled due to too many failed attempts', 'error');
+        setOtpModal(null);
+        setOtpValue('');
+        fetchOrders();
+      } else {
+        setOtpError(`Wrong OTP — ${res.data.attempts_remaining} attempts remaining`);
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.error || 'Verification failed');
+    }
+    finally { setVerifying(false); }
+  };
+
+  const acceptedOrders = orders.filter(o => o.status === 'accepted');
+  const ofdOrders = orders.filter(o => o.status === 'out_for_delivery');
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold mb-4 text-white">Delivery Partners</h2>
+      {businesses.length > 0 && (
+        <select value={selectedBiz || ''} onChange={e => setSelectedBiz(parseInt(e.target.value))}
+          className="glass-input px-4 py-2.5 text-sm rounded-lg mb-5">
+          {businesses.map(b => <option key={b.id} value={b.id}>{b.business_name}</option>)}
+        </select>
+      )}
+
+      {/* ─── Delivery Code Card ─── */}
+      <div className="rounded-xl p-8 text-center mb-6" style={{ background: '#1C1C1C' }}>
+        <p className="text-xs text-white/40 m-0 mb-3 uppercase tracking-wider">Your Delivery Partner Code</p>
+        <p className="m-0 mb-4" style={{ fontFamily: 'monospace', fontSize: 36, fontWeight: 'bold', color: '#F8C200', letterSpacing: '0.4em' }}>
+          {deliveryCode ? deliveryCode.split('').join(' ') : '— — — — —'}
+        </p>
+        <p className="text-xs text-white/40 m-0 mb-5">Share this code with your delivery partners to give them access</p>
+        <motion.button onClick={handleRegenerate} disabled={regenerating}
+          whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+          className="px-5 py-2 text-sm text-white font-medium rounded-lg cursor-pointer transition disabled:opacity-50"
+          style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.25)' }}>
+          {regenerating ? 'Regenerating...' : 'Regenerate Code'}
+        </motion.button>
+        <p className="text-[11px] m-0 mt-3" style={{ color: '#F8C200' }}>
+          ⚠️ Regenerating will log out all existing delivery partners
+        </p>
+      </div>
+
+      {/* ─── Orders Awaiting Delivery ─── */}
+      <h3 className="text-base font-semibold text-white mb-3">Orders awaiting delivery</h3>
+      {loadingOrders ? (
+        <div className="text-center py-10 text-white/40">Loading orders...</div>
+      ) : acceptedOrders.length === 0 ? (
+        <div className="rounded-xl p-6 text-center mb-6" style={{ background: '#1C1C1C' }}>
+          <p className="text-white/30 text-sm m-0">No orders awaiting delivery</p>
+        </div>
+      ) : (
+        <div className="space-y-3 mb-6">
+          {acceptedOrders.map(order => (
+            <div key={order.id} className="rounded-xl p-4" style={{ background: '#1C1C1C', border: '1px solid #2A2A2A' }}>
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <p className="text-sm font-semibold text-white m-0">Order #{order.id}</p>
+                  <p className="text-xs text-white/40 m-0 mt-0.5">{order.customer_name || 'Customer'}</p>
+                </div>
+                <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ background: 'rgba(248,194,0,0.15)', color: '#F8C200' }}>
+                  Accepted
+                </span>
+              </div>
+              <p className="text-xs text-white/50 m-0 mb-2">📍 {order.delivery_address}</p>
+              <div className="flex justify-between items-center">
+                <p className="text-sm font-bold text-primary m-0">₹{order.total}</p>
+                <motion.button onClick={() => handleMarkOutForDelivery(order.id)}
+                  whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                  className="px-4 py-2 bg-primary text-black text-xs font-bold rounded-lg cursor-pointer border-none transition">
+                  Mark Out for Delivery
+                </motion.button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ─── Out for Delivery ─── */}
+      {ofdOrders.length > 0 && (
+        <>
+          <h3 className="text-base font-semibold text-white mb-3">Out for Delivery</h3>
+          <div className="space-y-3 mb-6">
+            {ofdOrders.map(order => (
+              <div key={order.id} className="rounded-xl p-4" style={{ background: '#1C1C1C', border: '1px solid #2A2A2A' }}>
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-sm font-semibold text-white m-0">Order #{order.id}</p>
+                    <p className="text-xs text-white/40 m-0 mt-0.5">{order.customer_name || 'Customer'}</p>
+                  </div>
+                  <span className="text-xs font-medium px-2 py-1 rounded-full" style={{ background: 'rgba(29,191,115,0.15)', color: '#1DBF73' }}>
+                    Out for Delivery
+                  </span>
+                </div>
+                <p className="text-xs text-white/50 m-0 mb-2">📍 {order.delivery_address}</p>
+                <div className="flex justify-between items-center">
+                  <p className="text-sm font-bold text-primary m-0">₹{order.total}</p>
+                  <motion.button onClick={() => { setOtpModal(order); setOtpValue(''); setOtpError(''); }}
+                    whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                    className="px-4 py-2 text-xs font-bold rounded-lg cursor-pointer border-none transition"
+                    style={{ background: '#1DBF73', color: '#000' }}>
+                    Mark Delivered (needs OTP)
+                  </motion.button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* ─── OTP Modal ─── */}
+      {otpModal && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" onClick={() => setOtpModal(null)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="fixed z-[70] p-6 rounded-xl w-[90%] max-w-sm"
+            style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}>
+            <h3 className="text-lg font-bold text-white m-0 mb-1">Verify Delivery OTP</h3>
+            <p className="text-xs text-white/40 m-0 mb-5">Enter the 6-digit OTP from the customer for Order #{otpModal.id}</p>
+            <input
+              type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6}
+              value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              className="w-full text-center text-2xl font-bold text-white px-4 py-3 rounded-lg border-none outline-none mb-4"
+              style={{ background: '#2A2A2A', letterSpacing: '0.5em', fontFamily: 'monospace', border: otpError ? '2px solid #FF4D4D' : '2px solid transparent' }}
+              autoFocus
+            />
+            {otpError && <p className="text-xs text-red-400 m-0 mb-3 text-center">{otpError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setOtpModal(null)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-medium text-white/60 cursor-pointer transition"
+                style={{ background: '#2A2A2A', border: 'none' }}>
+                Cancel
+              </button>
+              <motion.button onClick={handleVerifyOtp} disabled={otpValue.length !== 6 || verifying}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                className="flex-1 py-2.5 bg-primary text-black rounded-lg text-sm font-bold cursor-pointer border-none transition disabled:opacity-50">
+                {verifying ? 'Verifying...' : 'Verify & Complete'}
+              </motion.button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </div>
+  );
+};
+
 /* ═══════════════ Dashboard ═══════════════ */
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -632,6 +859,11 @@ const Dashboard = () => {
               {tab === 'stock' && (
                 <UpdateStockTab businesses={businesses} selectedBiz={selectedBiz} setSelectedBiz={setSelectedBiz} products={products} setProducts={setProducts} token={token} />
               )}
+
+              {/* DELIVERY PARTNERS */}
+              {tab === 'delivery' && (
+                <DeliveryPartnersTab businesses={businesses} selectedBiz={selectedBiz} setSelectedBiz={setSelectedBiz} token={token} />
+              )}
             </>
           )}
         </main>
@@ -652,7 +884,7 @@ const Dashboard = () => {
       )}
 
       {/* FAB */}
-      {tab !== 'businesses' && tab !== 'analytics' && tab !== 'stock' && !showCreate && !showProductForm && selectedBiz && (
+      {tab !== 'businesses' && tab !== 'analytics' && tab !== 'stock' && tab !== 'delivery' && !showCreate && !showProductForm && selectedBiz && (
         <motion.button
           onClick={() => { setEditProduct(null); setShowProductForm(true); setTab('products'); }}
           whileHover={{ scale: 1.1 }}
