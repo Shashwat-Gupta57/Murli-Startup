@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { motion } from 'framer-motion';
 import axios from 'axios';
 
 const API = import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace(/\/api$/, '') : 'http://localhost:5000';
@@ -20,8 +21,27 @@ const IncomingOrders = ({ businessId }) => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(null);
+  const [deliveryCode, setDeliveryCode] = useState('');
   const token = localStorage.getItem('token');
   const intervalRef = useRef(null);
+
+  // OTP modal state
+  const [otpModal, setOtpModal] = useState(null); // order object
+  const [otpValue, setOtpValue] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [verifying, setVerifying] = useState(false);
+
+  // Fetch delivery code for OTP verification
+  useEffect(() => {
+    if (!businessId || !token) return;
+    (async () => {
+      try {
+        const res = await axios.get(`${API}/api/businesses/my`, { headers: { Authorization: `Bearer ${token}` } });
+        const biz = res.data.find(b => b.id === businessId);
+        if (biz) setDeliveryCode(biz.delivery_code || '');
+      } catch (err) { console.error(err); }
+    })();
+  }, [businessId, token]);
 
   const fetchOrders = useCallback(async () => {
     try { const res = await axios.get(`${API}/api/orders?business_id=${businessId}`, { headers: { Authorization: `Bearer ${token}` } }); setOrders(res.data); }
@@ -41,6 +61,34 @@ const IncomingOrders = ({ businessId }) => {
     try { await axios.patch(`${API}/api/orders/${orderId}/status`, { status }, { headers: { Authorization: `Bearer ${token}` } }); await fetchOrders(); }
     catch (err) { alert(err.response?.data?.error || 'Failed'); }
     finally { setUpdating(null); }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpModal || otpValue.length !== 6) return;
+    setVerifying(true);
+    setOtpError('');
+    try {
+      const res = await axios.post(`${API}/api/delivery/orders/${otpModal.id}/verify-otp`, {
+        delivery_code: deliveryCode,
+        otp: otpValue,
+      });
+      if (res.data.success) {
+        setOtpModal(null);
+        setOtpValue('');
+        fetchOrders();
+      } else if (res.data.cancelled) {
+        setOtpModal(null);
+        setOtpValue('');
+        setOtpError('');
+        fetchOrders();
+      } else {
+        setOtpError(`Wrong OTP — ${res.data.attempts_remaining} attempts remaining`);
+        setOtpValue('');
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.error || 'Verification failed');
+    }
+    finally { setVerifying(false); }
   };
 
   if (!businessId) return <div className="text-center py-16 text-text2">Select a business to view orders.</div>;
@@ -83,6 +131,8 @@ const IncomingOrders = ({ businessId }) => {
         <div className="flex justify-between text-xs text-text2"><span>Delivery</span><span>₹{parseFloat(order.delivery_fee).toFixed(2)}</span></div>
         <div className="flex justify-between text-sm font-bold mt-1 pt-1 border-t border-border"><span>Total</span><span className="text-primary">₹{parseFloat(order.total).toFixed(2)}</span></div>
         <div className="text-xs text-success mt-1">💵 {order.payment_method}</div>
+
+        {/* Standard action buttons */}
         {actions.length > 0 && (
           <div className="flex gap-2 mt-3">
             {actions.map(a => (
@@ -91,6 +141,17 @@ const IncomingOrders = ({ businessId }) => {
                 {updating === order.id ? '...' : a.label}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* OTP-based Mark Delivered button for out_for_delivery orders */}
+        {order.status === 'out_for_delivery' && (
+          <div className="mt-3">
+            <button onClick={() => { setOtpModal(order); setOtpValue(''); setOtpError(''); }}
+              className="w-full py-2.5 rounded-lg text-sm font-medium cursor-pointer transition"
+              style={{ background: '#1DBF73', color: '#fff', border: 'none' }}>
+              ✓ Mark Delivered (Enter OTP)
+            </button>
           </div>
         )}
       </div>
@@ -105,6 +166,42 @@ const IncomingOrders = ({ businessId }) => {
           <h4 className="text-sm font-semibold text-text2 mb-3">Cancelled Orders</h4>
           {cancelled.map(renderOrder)}
         </div>
+      )}
+
+      {/* ─── OTP Verification Modal ─── */}
+      {otpModal && (
+        <>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60]" onClick={() => setOtpModal(null)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="fixed z-[70] p-6 rounded-xl w-[90%] max-w-sm"
+            style={{ background: '#1C1C1C', border: '1px solid #2A2A2A', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}>
+            <h3 className="text-lg font-bold text-white m-0 mb-1">Verify Delivery OTP</h3>
+            <p className="text-xs text-white/40 m-0 mb-5">Enter the 6-digit OTP from the customer for Order #{otpModal.id}</p>
+            <input
+              type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6}
+              value={otpValue} onChange={e => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              className="w-full text-center text-2xl font-bold text-white px-4 py-3 rounded-lg border-none outline-none mb-4"
+              style={{ background: '#2A2A2A', letterSpacing: '0.5em', fontFamily: 'monospace', border: otpError ? '2px solid #FF4D4D' : '2px solid transparent' }}
+              autoFocus
+            />
+            {otpError && <p className="text-xs text-red-400 m-0 mb-3 text-center">{otpError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setOtpModal(null)}
+                className="flex-1 py-2.5 rounded-lg text-sm font-medium text-white/60 cursor-pointer transition"
+                style={{ background: '#2A2A2A', border: 'none' }}>
+                Cancel
+              </button>
+              <button onClick={handleVerifyOtp} disabled={otpValue.length !== 6 || verifying}
+                className="flex-1 py-2.5 rounded-lg text-sm font-bold cursor-pointer border-none transition disabled:opacity-50"
+                style={{ background: '#1DBF73', color: '#fff' }}>
+                {verifying ? 'Verifying...' : 'Verify & Complete'}
+              </button>
+            </div>
+          </motion.div>
+        </>
       )}
     </div>
   );
