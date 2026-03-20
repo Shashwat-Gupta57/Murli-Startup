@@ -86,6 +86,11 @@ function SmartRedirect() {
   if (token && role) {
     return <Navigate to={role === 'retailer' ? '/dashboard' : '/market'} replace />;
   }
+  // Check for delivery partner session
+  try {
+    const ds = JSON.parse(localStorage.getItem('deliverySession'));
+    if (ds && ds.delivery_code) return <Navigate to="/delivery" replace />;
+  } catch {}
   return <Navigate to="/login" replace />;
 }
 
