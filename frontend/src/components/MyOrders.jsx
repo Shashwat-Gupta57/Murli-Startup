@@ -64,6 +64,17 @@ const MyOrders = () => {
             </div>
 
             <div className="text-xs text-text2 mb-3">📍 {order.delivery_address}</div>
+
+            {/* OTP Display for customer */}
+            {order.otp && (order.status === 'accepted' || order.status === 'out_for_delivery') && (
+              <div className="rounded-xl p-4 mb-3 text-center" style={{ background: 'rgba(248,194,0,0.1)', border: '2px solid #F8C200' }}>
+                <p className="text-xs m-0 mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>YOUR DELIVERY OTP</p>
+                <p className="m-0 mb-1" style={{ fontFamily: 'monospace', fontSize: 28, fontWeight: 'bold', color: '#F8C200', letterSpacing: '0.4em' }}>
+                  {order.otp.split('').join(' ')}
+                </p>
+                <p className="text-xs m-0" style={{ color: 'rgba(255,255,255,0.4)' }}>Share only with your delivery partner</p>
+              </div>
+            )}
             <div className="flex justify-between text-xs text-text2"><span>Subtotal</span><span>₹{parseFloat(order.subtotal).toFixed(2)}</span></div>
             <div className="flex justify-between text-xs text-text2"><span>Delivery</span><span>₹{parseFloat(order.delivery_fee).toFixed(2)}</span></div>
             <div className="flex justify-between text-sm font-bold mt-1 pt-1 border-t border-border"><span>Total</span><span className="text-primary">₹{parseFloat(order.total).toFixed(2)}</span></div>

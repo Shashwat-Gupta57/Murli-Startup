@@ -209,7 +209,7 @@ router.get('/my', authMiddleware, async (req, res) => {
 const VALID_TRANSITIONS = {
   pending: ['accepted', 'cancelled'],
   accepted: ['out_for_delivery', 'cancelled'],
-  out_for_delivery: ['delivered'],
+  out_for_delivery: ['cancelled'],
   delivered: [],
   cancelled: []
 };

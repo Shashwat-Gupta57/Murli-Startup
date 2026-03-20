@@ -12,7 +12,7 @@ const STATUS = {
 const ACTIONS = {
   pending: [{ status: 'accepted', label: 'Accept', cls: 'bg-success text-bg' }, { status: 'cancelled', label: 'Cancel', cls: 'bg-transparent border border-danger text-danger' }],
   accepted: [{ status: 'out_for_delivery', label: 'Out for Delivery', cls: 'bg-primary text-bg' }, { status: 'cancelled', label: 'Cancel', cls: 'bg-transparent border border-danger text-danger' }],
-  out_for_delivery: [{ status: 'delivered', label: 'Mark Delivered', cls: 'bg-transparent border border-text text-text' }],
+  out_for_delivery: [],
   delivered: [], cancelled: [],
 };
 
